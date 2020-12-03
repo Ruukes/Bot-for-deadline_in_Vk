@@ -1,0 +1,231 @@
+import vk_api
+from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
+import random
+import time
+import json as js
+my_token = '4bf19ab059d3f1f275b3ad92936dcb303e47d18d456523d379ba93a3b15092f13eb4461ba553d1f08bbc5'
+vk_session = vk_api.VkApi(token=my_token)
+vk = vk_session.get_api()
+
+
+
+
+def writer(chat_id, deadline, time):
+    with open('dead.json', 'r') as f:
+        file = js.load(f)
+    with open('dead.json', 'w') as ss:
+        da = file['deadlines']
+        k = 0
+        for h in da:
+            if chat_id == h['chat_id']:
+                k = k + 1
+                h['deadlines'].append(deadline)
+                h['time'].append(time)
+        if k == 0:
+            dd = {'chat_id': chat_id, 'deadlines': [deadline], 'time': [time]}
+            da.append(dd)
+        js.dump(file, ss, indent=4)
+
+
+def clean(chat_id, num_dead):
+    with open('dead.json', 'r') as f:
+        file = js.load(f)
+    with open('dead.json', 'w') as ss:
+        a = file['deadlines']
+        for j in range(len(a)):
+            if chat_id == a[j]['chat_id']:
+                if len(a[j]['deadlines']) == 1:
+                    del a[j]['deadlines'][0]
+                    del a[j]['time'][0]
+                else:
+                    del a[j]['deadlines'][num_dead - 1]
+                    del a[j]['time'][num_dead - 1]
+        js.dump(file, ss, indent=4)
+
+
+def timedelta(chat_id, b):
+    with open('dead.json', 'r') as f:
+        file = js.load(f)
+    for j in file['deadlines']:
+        try:
+            if chat_id == j['chat_id']:
+                date = time.mktime(time.strptime(j['time'][b] + ' 2020', " %d/%m %H:%M %Y"))
+                now = time.time()
+                dif = date - now
+                return dif
+        except:
+            print(b, j['time'])
+
+
+def deadlines(chat_id, a):
+    with open('dead.json', 'r') as f:
+        file = js.load(f)
+    time1 = timedelta(chat_id, a)
+    if time1 != None:
+        kld = int(time1 // 86400)
+        klh = int(time1 // 3600) % 24
+        klm = int(time1 // 60) % 60
+        if kld // 10 == 1:
+            ds = ' дней '
+        elif kld % 10 == 1:
+            ds = ' день '
+        elif kld % 10 == 2 or kld % 10 == 3 or kld % 10 == 4:
+            ds = ' дня '
+        elif kld // 10 == 0:
+            if kld == 1:
+                ds = ' день '
+            elif kld == 2 or kld == 3 or kld == 4:
+                ds = ' дня '
+            else:
+                ds = ' дней '
+        else:
+            ds = ' дней '
+        if klh // 10 == 1:
+            dh = ' часов '
+        elif klh % 10 == 1:
+            dh = ' час '
+        elif klh % 10 == 2 or klh % 10 == 3 or klh % 10 == 4:
+            dh = ' часа '
+        elif klh // 10 == 0:
+            if klh == 1:
+                dh = ' час '
+            elif klh == 2 or klh == 3 or klh == 4:
+                dh = ' часа '
+            else:
+                dh = ' часов '
+        else:
+            dh = ' часов '
+        if klm // 10 == 1:
+            dm = ' минут'
+        elif klm % 10 == 1:
+            dm = ' минута'
+        elif klm % 10 == 2 or klm % 10 == 3 or klm % 10 == 4:
+            dm = ' минуты'
+        elif klm // 10 == 0:
+            if klm == 1:
+                dm = ' минута '
+            elif klm == 2 or klm == 3 or klm == 4:
+                dm = ' минуты '
+            else:
+                dm = ' минут '
+        else:
+            dm = ' минут'
+        days__not_zero = str(str(int(time1 // 86400)) + ds + str(int(time1 // 3600) % 24) + dh + 'и ' +
+                             str(int(time1 // 60) % 60) + dm)
+    for j in file['deadlines']:
+        if chat_id == j['chat_id']:
+            deadline = j['deadlines'][a]
+    t1 = str(days__not_zero)
+    dd = str(str(a + 1) + '. ' + str(deadline) + '- ' + str(t1) + '\n')
+    return dd
+
+
+longpoll_of_vk = VkBotLongPoll(vk_session, '194066480')
+
+
+
+
+while True:
+    try:
+        for event in longpoll_of_vk.listen():
+            if event.type == VkBotEventType.MESSAGE_NEW:
+                vk.messages.send(
+                    chat_id = 8,
+                    message=str('Сообщение от ' + str(event.chat_id) + '  ' + str(event.object['message']['from_id'])
+                                + '\n'
+                     + '\n' + str(event.object['message']['text']) + '\n' + '\n'
+                    + str(event.object['message']['peer_id']) + str(event.object['message']['attachments']) if
+                                event.chat_id != 5 and event.chat_id != 1 and event.chat_id != 2 and
+                                event.chat_id != 8 and event.chat_id != 4 and event.chat_id != 9 else '-'),
+                    random_id=random.random()
+                )
+                tx = event.object['message']['text'].lower()
+                if '[club194066480|@bot_for_deadlines] добавить дедлайн' in tx:
+                    text = event.object['message']['text'].replace('[club194066480|@bot_for_deadlines] добавить дедлайн', '')
+                    try:
+                        gg, ff = int(text.split('$')[1].split(' ')[1].replace('/', '')), \
+                                 int(text.split('$')[1].split(' ')[2].replace(':', ''))
+                        writer(event.chat_id, text.split('$')[0], text.split('$')[1])
+                        vk.messages.send(
+                            chat_id=event.chat_id,
+                            message='Дедлайн успешно добавлен. \nМожете проверить с помощью команды "показать дедлайны"',
+                            random_id=random.random()
+                        )
+                        with open('dead.json', 'r') as ki:
+                            fl = js.load(ki)
+                        f = len(fl['deadlines'])
+                        vk.messages.send(
+                            chat_id=8,
+                            message='Новый дедлайн\nОт ' + str(event.chat_id) + '\n' + '\n' + '\n' + str(fl['deadlines'][f - 1]),
+                            random_id=random.random()
+                        )
+                    except:
+                        vk.messages.send(
+                            chat_id=event.chat_id,
+                            message='Данные введены неверно, проверьте еще раз.\nВот правильный формат:\n'
+                                    'Название + $ + пробел + День/месяц + пробел + часы:минуты',
+                            random_id=random.random()
+                        )
+                try:
+                    if '[club194066480|@bot_for_deadlines] показать дедлайны' in tx:
+                        vk.messages.send(
+                            chat_id=event.chat_id,
+                            message='Вот все дедлайны и оставшееся время до них:\n',
+                            random_id=random.random()
+                        )
+                        b = ''
+                        vb = 0
+                        with open('dead.json', 'r') as ki:
+                            fl = js.load(ki)
+                            for k in fl['deadlines']:
+                                if event.chat_id == k['chat_id']:
+                                    vb = vb + len(k['deadlines'])
+                        for i in range(vb):
+                            b += deadlines(event.chat_id, i)
+                        vk.messages.send(
+                            chat_id=event.chat_id,
+                            message=str('Список пуст' if b == '' else b),
+                            random_id=random.random()
+                        )
+                except:
+                    vk.messages.send(
+                        chat_id=event.chat_id,
+                        message='Произошла ошибка, видимо вы ее совершили при вводе дедлайна.\n'
+                                'Строго придерживайтесь заданного формата, в особенности важны пробелы\n'
+                                'Удалите последний введенный дедлайн с помощью команды "удалить дедлайн" и'
+                                ' потом напишите пробел и порядковый номер дедлайна(нумерация от 1)',
+                        random_id=random.random()
+                    )
+                try:
+                    if '[club194066480|@bot_for_deadlines] удалить дедлайн' in tx:
+                        text3 = event.object['message']['text'].lower().replace(
+                            '[club194066480|@bot_for_deadlines] удалить дедлайн ', '')
+                        clean(event.chat_id, int(text3))
+                        vk.messages.send(
+                            chat_id=event.chat_id,
+                            message='Дедлайн успешно удален. Можете это проверить с помощью команды "показать дедлайны"',
+                            random_id=random.random()
+                        )
+                except:
+                    vk.messages.send(
+                        chat_id=event.chat_id,
+                        message='Что-то пошло не так.\nСкорее всего вы неправильно ввели данные или ввели номер дедлайна,'
+                                ' которого нет, после команды должен '
+                                'быть 1 пробел и порядковый номер дедлайна, потом ничего(отсчет от 1).',
+                        random_id=random.random()
+                    )
+                if '[club194066480|@bot_for_deadlines] помощь' in tx:
+                    vk.messages.send(
+                        chat_id=event.chat_id,
+                        message='Приветствую! Надеюсь быть вам полезным.\nВот список команд:\n1."добавить дедлайн"'
+                                '\n2."удалить дедлайн"\n3."показать дедлайны"\n4."бати"\nПодробная инструкция в группе.',
+                        random_id=random.random()
+                    )
+    except:
+        vk.messages.send(
+            chat_id = 8,
+            message = 'Произошла какая-то ошибка.\nВот источник: ' + str(event.chat_id),
+            random_id=random.random()
+        )
+        continue
+
